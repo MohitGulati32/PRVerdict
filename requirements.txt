@@ -3,3 +3,4 @@ uvicorn[standard]
 pydantic
 anthropic
 python-dotenv
+pyyaml
