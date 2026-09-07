@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shippable</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #111; padding: 2rem; }
+    h1 { font-size: 1.75rem; margin-bottom: 1.5rem; }
+    label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; }
+    textarea {
+      width: 100%; min-height: 200px; padding: 0.75rem; border: 1px solid #ccc;
+      border-radius: 6px; font-size: 0.95rem; resize: vertical;
+    }
+    button {
+      margin-top: 1rem; padding: 0.6rem 1.4rem; background: #111; color: #fff;
+      border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #result { margin-top: 2rem; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; }
+    #result h2 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+    .badge {
+      display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px;
+      font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;
+    }
+    .ship   { background: #d4edda; color: #155724; }
+    .hold   { background: #f8d7da; color: #721c24; }
+    .conditional { background: #fff3cd; color: #856404; }
+    pre { background: #f0f0f0; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; }
+    #error { color: #c00; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Shippable</h1>
+  <label for="context">Project context</label>
+  <textarea id="context" placeholder="Paste a PR description, README, test summary, or any project context..."></textarea>
+  <button id="submit">Score project</button>
+  <div id="error"></div>
+  <div id="result" style="display:none"></div>
+
+  <script>
+    const API = '';  // same origin; set to http://localhost:8000 if running separately
+
+    document.getElementById('submit').addEventListener('click', async () => {
+      const context = document.getElementById('context').value.trim();
+      if (!context) return;
+
+      const btn = document.getElementById('submit');
+      const errorEl = document.getElementById('error');
+      const resultEl = document.getElementById('result');
+
+      btn.disabled = true;
+      btn.textContent = 'Scoring…';
+      errorEl.textContent = '';
+      resultEl.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API}/score`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ context }),
+        });
+        if (!res.ok) throw new Error(`Server error ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+
+        resultEl.innerHTML = `
+          <h2>Result</h2>
+          <span class="badge ${data.recommendation}">${data.recommendation}</span>
+          <p><strong>Overall score:</strong> ${data.overall_score.toFixed(1)} / 10</p>
+          <p style="margin-top:0.5rem">${data.summary}</p>
+          <details style="margin-top:1rem">
+            <summary style="cursor:pointer;font-size:0.85rem">Full JSON</summary>
+            <pre>${JSON.stringify(data.raw, null, 2)}</pre>
+          </details>
+        `;
+        resultEl.style.display = 'block';
+      } catch (err) {
+        errorEl.textContent = err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Score project';
+      }
+    });
+  </script>
+</body>
+</html>
