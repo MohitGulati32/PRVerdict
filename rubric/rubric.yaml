@@ -1,0 +1,123 @@
+project: Shippable
+description: >
+  Readiness criteria used to gate a pull request before merge.
+
+criteria:
+  - id: test_coverage
+    name: Test Coverage
+    description: >
+      The PR's automated test suite passes, and code coverage on changed
+      files does not regress below the repository's baseline threshold.
+    data_source: >
+      CI check results (test suite pass or fail) and a coverage report
+      diff scoped to changed files.
+    pass_example: >
+      All CI checks green, coverage on changed files is 82 percent against
+      an 80 percent baseline, no regression.
+    fail_example: >
+      CI test suite failing on two tests, or coverage on changed files
+      drops from 78 percent to 61 percent with no explanation.
+    ambiguity_note: >
+      needs_review when coverage tooling isn't configured for the touched
+      files, such as a brand new service with no baseline yet, or when
+      tests are skipped with a documented reason like a flaky test
+      quarantine rather than simply missing.
+
+  - id: change_risk
+    name: Change Risk
+    description: >
+      The size and blast radius of the change should be proportionate to
+      the review and testing it received, weighted higher when it touches
+      a critical path.
+    data_source: >
+      Diff stats, lines added and removed and files changed, cross-referenced
+      against the service criticality config.
+    pass_example: >
+      A 40 line change to a non-critical internal tool, single file,
+      reviewed and approved.
+    fail_example: >
+      A 600 line change touching the payment processing path with no
+      design doc linked and only one reviewer.
+    ambiguity_note: >
+      needs_review when a large diff is auto-generated, such as a
+      dependency lockfile update or codegen output, since raw line count
+      overstates risk for machine-generated changes.
+
+  - id: service_criticality
+    name: Service Criticality
+    description: >
+      Whether the service or path being changed is tagged as business
+      critical, customer-facing, revenue-impacting, or on the incident
+      escalation path, which determines how strictly the other criteria
+      apply.
+    data_source: >
+      A manually maintained config file mapping service names or path
+      patterns to a tier, P0, P1, or P2.
+    pass_example: >
+      Change is in a P2-tagged internal tool, standard criteria apply
+      with no elevation.
+    fail_example: >
+      Change touches a P0-tagged service but the elevated review
+      requirement that should apply to P0 services was skipped.
+    ambiguity_note: >
+      needs_review whenever a touched path doesn't match any entry in
+      the config. An unclassified service should never silently default
+      to lowest risk.
+
+  - id: rollback_readiness
+    name: Rollback Readiness
+    description: >
+      The PR documents how to revert the change safely if something goes
+      wrong after deploy, either through a stated rollback plan, a
+      feature flag, or confirmation the change is naturally reversible,
+      such as an additive schema change.
+    data_source: >
+      PR description text, a linked runbook, or presence of feature flag
+      references in the diff.
+    pass_example: >
+      PR description states the change is behind a feature flag and can
+      be disabled without a redeploy, or confirms the migration is
+      purely additive and safe to roll back.
+    fail_example: >
+      A breaking schema migration with no rollback plan mentioned and no
+      feature flag.
+    ambiguity_note: >
+      needs_review when a rollback plan is mentioned but vague, such as
+      can revert if needed, without naming the actual mechanism.
+
+  - id: ownership
+    name: Ownership
+    description: >
+      The PR has been approved by someone with actual ownership of the
+      changed code per CODEOWNERS, not simply any available reviewer.
+    data_source: >
+      The CODEOWNERS file cross-referenced with the list of PR approvers.
+    pass_example: >
+      PR touches the billing service, approved by a member of the
+      billing team CODEOWNERS group.
+    fail_example: >
+      PR touches the billing service, approved only by a teammate from
+      an unrelated team with no billing CODEOWNERS approval.
+    ambiguity_note: >
+      needs_review when CODEOWNERS doesn't cover the touched path at
+      all. That ownership gap is itself worth surfacing rather than
+      silently passing.
+
+  - id: incident_history
+    name: Incident History
+    description: >
+      Whether the service being changed has had a recent incident, which
+      raises the bar for caution on this PR even if the change looks
+      unrelated on the surface.
+    data_source: >
+      A PagerDuty or Opsgenie MCP call for incidents on the touched
+      service within the last 30 days.
+    pass_example: >
+      No incidents recorded on the service in the last 30 days.
+    fail_example: >
+      Not typically a hard fail on its own, this criterion is advisory
+      rather than blocking by design.
+    ambiguity_note: >
+      needs_review if there is an unresolved incident on the touched
+      service. Noted as a risk factor, not a block, if there was a
+      recent but resolved incident within the lookback window.
