@@ -2,10 +2,18 @@
 # patterns to a criticality tier (P0, P1, P2), representing organizational
 # knowledge that can't be inferred from GitHub or incident data directly.
 # Keep it up to date as services are added, renamed, or reclassified.
+#
+# Patterns are matched against changed file paths with the same
+# gitignore-style matching CODEOWNERS uses (see
+# mcp_client/github_client.py's _codeowners_pattern_to_regex). A bare
+# service name with no trailing slash only matches a file whose entire
+# path equals that name - it will NOT match files inside a same-named
+# directory. Entries must be directory-anchored paths ending in "/" (e.g.
+# "services/payments-api/") to actually cover a service's files.
 
-payments-api: P0
-checkout-service: P0
-auth-gateway: P0
-notification-service: P1
-user-profile-service: P1
-internal-admin-tool: P2
+services/payments-api/: P0
+services/checkout-service/: P0
+services/auth-gateway/: P0
+services/notification-service/: P1
+services/user-profile-service/: P1
+services/internal-admin-tool/: P2
