@@ -106,11 +106,14 @@ def _extract_test_coverage(check_runs: dict) -> dict[str, Any]:
 
 
 def _extract_change_risk(pull_request: dict) -> dict[str, Any]:
-    context = "pr_snapshot['pull_request']"
+    # additions/deletions/changed_files use .get(..., 0), not _require: the
+    # GitHub API omits these int fields entirely when they're zero (verified
+    # on a real PR with 0 deletions), so a missing key here means 0, not
+    # malformed data.
     return {
-        "additions": _require(pull_request, "additions", context),
-        "deletions": _require(pull_request, "deletions", context),
-        "changed_files": _require(pull_request, "changed_files", context),
+        "additions": pull_request.get("additions", 0),
+        "deletions": pull_request.get("deletions", 0),
+        "changed_files": pull_request.get("changed_files", 0),
     }
 
 
