@@ -1,3 +1,9 @@
+# These entries are illustrative examples, not matched against the
+# langgraph validation set used in Phase 8, since that repo has no
+# microservices structure. In a real deployment, this file is replaced
+# with the target org's actual service-to-path mapping. Validated
+# separately via constructed test cases, see Phase 8 validation notes.
+#
 # This file is manually maintained. It maps service names or repo path
 # patterns to a criticality tier (P0, P1, P2), representing organizational
 # knowledge that can't be inferred from GitHub or incident data directly.
