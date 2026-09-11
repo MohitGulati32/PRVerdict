@@ -8,10 +8,12 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 from typing import Any
 
 DOCKER_IMAGE = "ghcr.io/github/github-mcp-server"
 PROTOCOL_VERSION = "2024-11-05"
+CODEOWNERS_PATHS = (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS")
 
 
 class GitHubMCPError(RuntimeError):
@@ -51,6 +53,9 @@ class GitHubMCPClient:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
             env={**os.environ, "GITHUB_PERSONAL_ACCESS_TOKEN": self.token},
+            # Default StreamReader buffer (64KB) is too small for tool
+            # responses like tools/list or a file's full contents.
+            limit=10 * 1024 * 1024,
         )
         await self._request(
             "initialize",
@@ -126,3 +131,125 @@ class GitHubMCPClient:
             "files": files,
             "reviews": reviews,
         }
+
+    async def _get_file_text(self, owner: str, repo: str, path: str) -> str | None:
+        """Fetch one file's text content, or None if it doesn't exist.
+
+        get_file_contents doesn't fit call_tool()'s "single JSON text block"
+        shape: a found file comes back as a "resource" content block (not
+        "text"), and a missing path isn't always isError=True either — the
+        server sometimes replies with a non-error "text" block suggesting
+        nearby matches instead. Both of those count as "not found" here.
+        """
+        result = await self._request(
+            "tools/call",
+            {"name": "get_file_contents", "arguments": {"owner": owner, "repo": repo, "path": path}},
+        )
+        if result.get("isError"):
+            return None
+        for block in result.get("content", []):
+            if block.get("type") == "resource":
+                return block.get("resource", {}).get("text")
+        return None
+
+    async def get_codeowners(self, owner: str, repo: str) -> str | None:
+        """Fetch CODEOWNERS content, checking the conventional locations in order."""
+        for path in CODEOWNERS_PATHS:
+            text = await self._get_file_text(owner, repo, path)
+            if text is not None:
+                return text
+        return None
+
+
+def _parse_codeowners(content: str) -> list[tuple[str, list[str]]]:
+    """Parse CODEOWNERS lines into (pattern, owners) pairs, in file order."""
+    rules = []
+    for line in content.splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        pattern, *owners = line.split()
+        if owners:
+            rules.append((pattern, owners))
+    return rules
+
+
+def _codeowners_pattern_to_regex(pattern: str) -> re.Pattern[str]:
+    """Translate one CODEOWNERS pattern to a regex matched against a repo-relative file path.
+
+    Follows the gitignore-style rules CODEOWNERS documents: a pattern with
+    no interior slash (trailing slash aside) matches at any depth; any
+    other slash anchors it to the repo root; a trailing slash matches the
+    named directory's contents. This covers the patterns real CODEOWNERS
+    files use (*, **, ?, directory prefixes) without reimplementing full
+    gitignore fidelity (no character classes, no negation - CODEOWNERS
+    itself doesn't support negation either).
+    """
+    dir_only = pattern.endswith("/")
+    core = pattern[:-1] if dir_only else pattern
+    anchored = "/" in core  # includes a leading slash, an explicit root anchor
+    core = core.lstrip("/")
+
+    segments = []
+    for segment in core.split("/") if core else []:
+        if segment == "**":
+            segments.append(".*")
+            continue
+        piece = []
+        for ch in segment:
+            if ch == "*":
+                piece.append("[^/]*")
+            elif ch == "?":
+                piece.append("[^/]")
+            else:
+                piece.append(re.escape(ch))
+        segments.append("".join(piece))
+    body = "/".join(segments)
+
+    prefix = "^" if anchored else "^(?:.*/)?"
+    suffix = "/.*$" if dir_only else "$"
+    return re.compile(prefix + body + suffix)
+
+
+def check_ownership(pr_snapshot: dict[str, Any], codeowners_content: str | None) -> dict[str, Any]:
+    """Cross-reference a PR's changed files against CODEOWNERS and its approvals.
+
+    For each file in pr_snapshot["files"], the last CODEOWNERS rule that
+    matches wins (matching git's own precedence). matched_owners is the
+    union of required owners across all changed files. approving_reviewers
+    is who actually left an APPROVED review.
+
+    Team owners (e.g. "@org/team-x") are included in matched_owners but
+    can't be checked against approving_reviewers without an extra API call
+    to resolve team membership, so a team-only approval will never make
+    is_owned True here - only a direct match on an individual owner does.
+    """
+    rules = [
+        (owners, _codeowners_pattern_to_regex(pattern))
+        for pattern, owners in _parse_codeowners(codeowners_content or "")
+    ]
+
+    matched_owners: set[str] = set()
+    for f in pr_snapshot.get("files", []):
+        filename = f["filename"]
+        winner: list[str] | None = None
+        for owners, regex in rules:
+            if regex.match(filename):
+                winner = owners
+        if winner:
+            matched_owners.update(winner)
+
+    approving_reviewers = sorted({
+        review["user"]["login"]
+        for review in pr_snapshot.get("reviews", [])
+        if review.get("state") == "APPROVED"
+    })
+
+    individual_owners = {o.lower() for o in matched_owners if "/" not in o}
+    is_owned = any(f"@{reviewer}".lower() in individual_owners for reviewer in approving_reviewers)
+
+    return {
+        "matched_owners": sorted(matched_owners),
+        "approving_reviewers": approving_reviewers,
+        "is_owned": is_owned,
+    }
