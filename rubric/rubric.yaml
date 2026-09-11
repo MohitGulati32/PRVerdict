@@ -9,19 +9,24 @@ criteria:
       The PR's automated test suite passes, and code coverage on changed
       files does not regress below the repository's baseline threshold.
     data_source: >
-      CI check results (test suite pass or fail) and a coverage report
-      diff scoped to changed files.
+      CI check run status (pass/fail) for the test suite and any
+      coverage-related check, such as codecov/patch, sourced via
+      check_runs. Does not include the actual coverage percentage or
+      delta, only whether the relevant checks passed.
     pass_example: >
-      All CI checks green, coverage on changed files is 82 percent against
-      an 80 percent baseline, no regression.
+      The test suite check run and the codecov/patch check run both show
+      a passing conclusion.
     fail_example: >
-      CI test suite failing on two tests, or coverage on changed files
-      drops from 78 percent to 61 percent with no explanation.
+      The test suite check run shows a failing conclusion, or the
+      codecov/patch check run shows a failing conclusion while the test
+      suite passes.
     ambiguity_note: >
       needs_review when coverage tooling isn't configured for the touched
       files, such as a brand new service with no baseline yet, or when
       tests are skipped with a documented reason like a flaky test
-      quarantine rather than simply missing.
+      quarantine rather than simply missing. Also needs_review when no
+      coverage-related check run exists at all, since a passing test
+      suite alone doesn't confirm coverage didn't regress.
 
   - id: change_risk
     name: Change Risk
