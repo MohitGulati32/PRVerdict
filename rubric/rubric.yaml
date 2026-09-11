@@ -97,13 +97,23 @@ criteria:
       changed code per CODEOWNERS, not simply any available reviewer.
     data_source: >
       The CODEOWNERS file cross-referenced with the list of PR approvers.
+      When a CODEOWNERS entry names a team (such as @org/team-x) rather
+      than an individual, ownership can only be confirmed if the
+      approving reviewer is also listed as an individual owner; team
+      membership itself isn't resolved, since that requires a separate
+      API call beyond the PR snapshot.
     pass_example: >
-      PR touches the billing service, approved by a member of the
-      billing team CODEOWNERS group.
+      PR touches the billing service, CODEOWNERS names an individual for
+      that path, and that individual approved the PR directly.
     fail_example: >
-      PR touches the billing service, approved only by a teammate from
-      an unrelated team with no billing CODEOWNERS approval.
+      PR touches the billing service, approved only by a teammate not
+      named in CODEOWNERS for that path, or CODEOWNERS names only the
+      billing team with no individual approval to confirm it.
     ambiguity_note: >
+      needs_review when the only matching CODEOWNERS entry for a touched
+      path is a team rather than an individual, since team membership
+      can't be confirmed from the PR snapshot alone and a genuinely
+      valid approval could otherwise be flagged as unowned. Also
       needs_review when CODEOWNERS doesn't cover the touched path at
       all. That ownership gap is itself worth surfacing rather than
       silently passing.
