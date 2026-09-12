@@ -105,15 +105,22 @@ def _extract_test_coverage(check_runs: dict) -> dict[str, Any]:
     }
 
 
-def _extract_change_risk(pull_request: dict) -> dict[str, Any]:
+def _extract_change_risk(pull_request: dict, service_criticality: dict[str, Any]) -> dict[str, Any]:
     # additions/deletions/changed_files use .get(..., 0), not _require: the
     # GitHub API omits these int fields entirely when they're zero (verified
     # on a real PR with 0 deletions), so a missing key here means 0, not
     # malformed data.
+    #
+    # service_criticality's tier/matched_files are included here too - the
+    # rubric's data_source for this criterion explicitly calls for diff
+    # stats cross-referenced against the criticality config, so the scoring
+    # prompt needs both, not raw size alone.
     return {
         "additions": pull_request.get("additions", 0),
         "deletions": pull_request.get("deletions", 0),
         "changed_files": pull_request.get("changed_files", 0),
+        "service_criticality_tier": service_criticality["tier"],
+        "service_criticality_matched_files": service_criticality["matched_files"],
     }
 
 
@@ -225,10 +232,12 @@ def normalize_pr_data(
     check_runs = _require(pr_snapshot, "check_runs", "pr_snapshot")
     files = _require(pr_snapshot, "files", "pr_snapshot")
 
+    service_criticality = get_service_criticality(pr_snapshot, service_criticality_path)
+
     return {
         "test_coverage": _extract_test_coverage(check_runs),
-        "change_risk": _extract_change_risk(pull_request),
+        "change_risk": _extract_change_risk(pull_request, service_criticality),
         "rollback_readiness": _extract_rollback_readiness(pull_request, files),
         "ownership": _extract_ownership(codeowners_result),
-        "service_criticality": get_service_criticality(pr_snapshot, service_criticality_path),
+        "service_criticality": service_criticality,
     }
