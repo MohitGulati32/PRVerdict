@@ -118,7 +118,11 @@ def _extract_change_risk(pull_request: dict) -> dict[str, Any]:
 
 
 def _extract_rollback_readiness(pull_request: dict, files: list) -> dict[str, Any]:
-    body = _require(pull_request, "body", "pr_snapshot['pull_request']") or ""
+    # body uses .get(..., ""), not _require: the GitHub API (via the MCP
+    # server) omits this field entirely when it's empty, the same
+    # omitempty pattern already handled for additions/deletions/changed_files
+    # in _extract_change_risk (verified on a real PR with no body).
+    body = pull_request.get("body") or ""
 
     diff_matches: dict[str, list[str]] = {}
     for file_entry in files:
