@@ -6,81 +6,298 @@
   <title>Shippable</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #111; padding: 2rem; }
-    h1 { font-size: 1.75rem; margin-bottom: 1.5rem; }
-    label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; }
-    textarea {
-      width: 100%; min-height: 200px; padding: 0.75rem; border: 1px solid #ccc;
-      border-radius: 6px; font-size: 0.95rem; resize: vertical;
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: #f5f5f5;
+      color: #111;
+      padding: 2.5rem 1.5rem;
     }
-    button {
-      margin-top: 1rem; padding: 0.6rem 1.4rem; background: #111; color: #fff;
-      border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+
+    .wrap { max-width: 640px; margin: 0 auto; }
+
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .tagline { color: #666; font-size: 0.95rem; margin-bottom: 2rem; }
+
+    .input-row { display: flex; gap: 0.6rem; }
+
+    #pr-input {
+      flex: 1;
+      padding: 0.7rem 0.85rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.95rem;
     }
-    button:disabled { opacity: 0.5; cursor: default; }
-    #result { margin-top: 2rem; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; }
-    #result h2 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+    #pr-input:focus { outline: 2px solid #111; outline-offset: 1px; }
+
+    #run-btn {
+      padding: 0.7rem 1.4rem;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #run-btn:hover:not(:disabled) { background: #333; }
+    #run-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .hint { color: #888; font-size: 0.8rem; margin-top: 0.5rem; }
+
+    #error {
+      display: none;
+      margin-top: 1.5rem;
+      padding: 0.85rem 1rem;
+      background: #fdecea;
+      color: #7a2a20;
+      border: 1px solid #f3c6bf;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    #loading {
+      display: none;
+      margin-top: 2rem;
+      align-items: center;
+      gap: 0.6rem;
+      color: #555;
+      font-size: 0.95rem;
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid #ddd;
+      border-top-color: #111;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #results { display: none; margin-top: 2rem; }
+
+    .banner {
+      border-radius: 10px;
+      padding: 1.4rem 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid transparent;
+    }
+    .banner .decision {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+    .banner .pr-ref { font-size: 0.85rem; opacity: 0.8; margin-top: 0.2rem; }
+    .banner .summary { font-size: 0.9rem; margin-top: 0.7rem; line-height: 1.4; }
+
+    .banner-ready       { background: #e6f4ea; border-color: #b7dfc3; color: #1a7f37; }
+    .banner-blocked     { background: #fdecea; border-color: #f3c6bf; color: #c0342a; }
+    .banner-needs_human_review { background: #fff8e1; border-color: #f1e0a3; color: #8a6d00; }
+
+    .criteria-list {
+      background: #fff;
+      border: 1px solid #e2e2e2;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    details.criterion { border-bottom: 1px solid #eee; }
+    details.criterion:last-child { border-bottom: none; }
+
+    details.criterion summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0.9rem 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    details.criterion summary::-webkit-details-marker { display: none; }
+
+    .criterion-name { font-size: 0.95rem; font-weight: 600; }
+
+    .row-right { display: flex; align-items: center; gap: 0.6rem; }
+
     .badge {
-      display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px;
-      font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;
+      display: inline-block;
+      padding: 0.22rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
     }
-    .ship   { background: #d4edda; color: #155724; }
-    .hold   { background: #f8d7da; color: #721c24; }
-    .conditional { background: #fff3cd; color: #856404; }
-    pre { background: #f0f0f0; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; }
-    #error { color: #c00; margin-top: 1rem; }
+    .badge-pass         { background: #e6f4ea; color: #1a7f37; }
+    .badge-fail         { background: #fdecea; color: #c0342a; }
+    .badge-needs_review { background: #fff8e1; color: #8a6d00; }
+
+    .chevron {
+      color: #999;
+      font-size: 0.75rem;
+      transition: transform 0.15s ease;
+    }
+    details.criterion[open] .chevron { transform: rotate(90deg); }
+
+    .reasoning {
+      padding: 0 1.1rem 1rem 1.1rem;
+      font-size: 0.88rem;
+      color: #444;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
-  <h1>Shippable</h1>
-  <label for="context">Project context</label>
-  <textarea id="context" placeholder="Paste a PR description, README, test summary, or any project context..."></textarea>
-  <button id="submit">Score project</button>
-  <div id="error"></div>
-  <div id="result" style="display:none"></div>
+  <div class="wrap">
+    <h1>Shippable</h1>
+    <div class="tagline">PR readiness gate, judged criterion by criterion.</div>
+
+    <div class="input-row">
+      <input
+        id="pr-input"
+        type="text"
+        placeholder="https://github.com/owner/repo/pull/123 or owner/repo#123"
+        autocomplete="off"
+      />
+      <button id="run-btn">Run</button>
+    </div>
+    <div class="hint">Paste a PR URL, or type it as owner/repo#123.</div>
+
+    <div id="error"></div>
+
+    <div id="loading">
+      <div class="spinner"></div>
+      <span>Running checks — fetching the PR and scoring six criteria…</span>
+    </div>
+
+    <div id="results">
+      <div id="banner" class="banner"></div>
+      <div id="criteria-list" class="criteria-list"></div>
+    </div>
+  </div>
 
   <script>
-    const API = '';  // same origin; set to http://localhost:8000 if running separately
+    const API = ''; // same origin
 
-    document.getElementById('submit').addEventListener('click', async () => {
-      const context = document.getElementById('context').value.trim();
-      if (!context) return;
+    const CRITERIA_ORDER = [
+      'test_coverage',
+      'change_risk',
+      'rollback_readiness',
+      'ownership',
+      'service_criticality',
+      'incident_history',
+    ];
+    const CRITERIA_LABELS = {
+      test_coverage: 'Test Coverage',
+      change_risk: 'Change Risk',
+      rollback_readiness: 'Rollback Readiness',
+      ownership: 'Ownership',
+      service_criticality: 'Service Criticality',
+      incident_history: 'Incident History',
+    };
+    const SCORE_LABELS = { pass: 'Pass', fail: 'Fail', needs_review: 'Needs review' };
+    const DECISION_LABELS = {
+      ready: 'Ready to ship',
+      blocked: 'Blocked',
+      needs_human_review: 'Needs human review',
+    };
 
-      const btn = document.getElementById('submit');
-      const errorEl = document.getElementById('error');
-      const resultEl = document.getElementById('result');
+    const input = document.getElementById('pr-input');
+    const runBtn = document.getElementById('run-btn');
+    const errorEl = document.getElementById('error');
+    const loadingEl = document.getElementById('loading');
+    const resultsEl = document.getElementById('results');
+    const bannerEl = document.getElementById('banner');
+    const listEl = document.getElementById('criteria-list');
 
-      btn.disabled = true;
-      btn.textContent = 'Scoring…';
-      errorEl.textContent = '';
-      resultEl.style.display = 'none';
+    function setBusy(busy) {
+      runBtn.disabled = busy;
+      input.disabled = busy;
+      loadingEl.style.display = busy ? 'flex' : 'none';
+    }
+
+    function showError(message) {
+      errorEl.textContent = message;
+      errorEl.style.display = 'block';
+    }
+
+    function renderResults(data) {
+      bannerEl.className = 'banner banner-' + data.decision;
+      bannerEl.innerHTML = `
+        <div class="decision">${DECISION_LABELS[data.decision] || data.decision}</div>
+        <div class="pr-ref">${data.repo}#${data.pr_number}</div>
+        <div class="summary">${data.summary}</div>
+      `;
+
+      listEl.innerHTML = '';
+      for (const id of CRITERIA_ORDER) {
+        const result = data.criteria[id];
+        if (!result) continue;
+
+        const details = document.createElement('details');
+        details.className = 'criterion';
+
+        const summary = document.createElement('summary');
+        summary.innerHTML = `
+          <span class="criterion-name">${CRITERIA_LABELS[id] || id}</span>
+          <span class="row-right">
+            <span class="badge badge-${result.score}">${SCORE_LABELS[result.score] || result.score}</span>
+            <span class="chevron">&#9656;</span>
+          </span>
+        `;
+
+        const reasoning = document.createElement('div');
+        reasoning.className = 'reasoning';
+        reasoning.textContent = result.reasoning;
+
+        details.appendChild(summary);
+        details.appendChild(reasoning);
+        listEl.appendChild(details);
+      }
+
+      resultsEl.style.display = 'block';
+    }
+
+    async function runCheck() {
+      const pr = input.value.trim();
+      errorEl.style.display = 'none';
+      if (!pr) {
+        showError('Enter a PR URL or owner/repo#number first.');
+        return;
+      }
+
+      resultsEl.style.display = 'none';
+      setBusy(true);
 
       try {
-        const res = await fetch(`${API}/score`, {
+        const res = await fetch(`${API}/check`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ context }),
+          body: JSON.stringify({ pr }),
         });
-        if (!res.ok) throw new Error(`Server error ${res.status}: ${await res.text()}`);
-        const data = await res.json();
 
-        resultEl.innerHTML = `
-          <h2>Result</h2>
-          <span class="badge ${data.recommendation}">${data.recommendation}</span>
-          <p><strong>Overall score:</strong> ${data.overall_score.toFixed(1)} / 10</p>
-          <p style="margin-top:0.5rem">${data.summary}</p>
-          <details style="margin-top:1rem">
-            <summary style="cursor:pointer;font-size:0.85rem">Full JSON</summary>
-            <pre>${JSON.stringify(data.raw, null, 2)}</pre>
-          </details>
-        `;
-        resultEl.style.display = 'block';
+        if (!res.ok) {
+          let detail = res.statusText;
+          try {
+            const body = await res.json();
+            if (body.detail) detail = body.detail;
+          } catch (_) {}
+          throw new Error(detail);
+        }
+
+        const data = await res.json();
+        renderResults(data);
       } catch (err) {
-        errorEl.textContent = err.message;
+        showError(err.message || 'Something went wrong.');
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Score project';
+        setBusy(false);
       }
+    }
+
+    runBtn.addEventListener('click', runCheck);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runCheck();
     });
   </script>
 </body>
