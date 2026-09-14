@@ -16,15 +16,16 @@ from typing import Any
 import yaml
 
 from mcp_client.github_client import _codeowners_pattern_to_regex
+from mcp_client.incident_client import get_recent_incidents
 from rubric.schema import load_rubric
 
-# incident_history isn't covered yet - it waits on incident_client.py (Phase 6).
 TARGET_CRITERIA = (
     "test_coverage",
     "change_risk",
     "rollback_readiness",
     "ownership",
     "service_criticality",
+    "incident_history",
 )
 
 DEFAULT_SERVICE_CRITICALITY_PATH = "rubric/service_criticality.yaml"
@@ -207,6 +208,38 @@ def get_service_criticality(
     return {"tier": highest_tier, "matched_files": matches}
 
 
+def _service_name_from_pattern(pattern: str) -> str:
+    """Derive a bare service name from a service_criticality.yaml pattern.
+
+    Patterns are directory-anchored paths like "services/payments-api/";
+    the service name is the final path segment, "payments-api", which is
+    also how incident_client.py's mock PagerDuty data is keyed.
+    """
+    return pattern.rstrip("/").rsplit("/", 1)[-1]
+
+
+def _extract_incident_history(service_criticality: dict[str, Any]) -> dict[str, Any]:
+    """Look up recent incidents for whichever service the PR's touched files
+    matched in service_criticality.yaml - the same match that determines
+    change_risk's tier also determines which service to query here, so
+    there's no separate path-matching logic to keep in sync.
+
+    A PR that touched no known service (tier "unmatched") has no service to
+    query, so this returns no incidents rather than guessing one.
+    """
+    matched_files = service_criticality["matched_files"]
+    if not matched_files:
+        return {"service_name": None, "incidents": []}
+
+    tier = service_criticality["tier"]
+    matched = next(m for m in matched_files if m["tier"] == tier)
+    service_name = _service_name_from_pattern(matched["pattern"])
+    return {
+        "service_name": service_name,
+        "incidents": get_recent_incidents(service_name),
+    }
+
+
 def normalize_pr_data(
     pr_snapshot: dict[str, Any],
     codeowners_result: dict[str, Any],
@@ -214,7 +247,7 @@ def normalize_pr_data(
     service_criticality_path: str | Path = DEFAULT_SERVICE_CRITICALITY_PATH,
 ) -> dict[str, Any]:
     """Extract unscored per-criterion signal for test_coverage, change_risk,
-    rollback_readiness, ownership, and service_criticality.
+    rollback_readiness, ownership, service_criticality, and incident_history.
 
     `rubric` is a path to rubric.yaml, loaded via rubric.schema.load_rubric()
     so this stays honest to whatever the rubric currently defines - if one
@@ -240,4 +273,5 @@ def normalize_pr_data(
         "rollback_readiness": _extract_rollback_readiness(pull_request, files),
         "ownership": _extract_ownership(codeowners_result),
         "service_criticality": service_criticality,
+        "incident_history": _extract_incident_history(service_criticality),
     }

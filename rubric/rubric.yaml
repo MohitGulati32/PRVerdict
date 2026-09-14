@@ -133,6 +133,11 @@ criteria:
       Not typically a hard fail on its own, this criterion is advisory
       rather than blocking by design.
     ambiguity_note: >
-      needs_review if there is an unresolved incident on the touched
-      service. Noted as a risk factor, not a block, if there was a
-      recent but resolved incident within the lookback window.
+      Both an active (triggered or acknowledged) incident and a recently
+      resolved one within the lookback window score needs_review, not
+      fail and not a clean pass, by design. This criterion is advisory
+      and correlational, a signal that the touched service has been
+      unstable lately, not a direct measurement of this specific PR's
+      safety, so the score itself doesn't try to weigh active versus
+      resolved. That distinction is left in the reasoning text for a
+      human reviewer to judge, not encoded in the label.

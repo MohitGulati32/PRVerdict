@@ -1,0 +1,12 @@
+{
+  "_comment": "PagerDuty has no native P0/P1/P2 concept; the rubric's incident_history criterion maps those severities onto PagerDuty's urgency field instead: urgency=high corresponds to a P0/P1-equivalent incident, urgency=low corresponds to a P2-equivalent incident.",
+  "payments-api": [{"urgency": "high", "status": "resolved", "days_ago": 2, "summary": "Checkout timeout spike, root cause: DB connection pool exhaustion"}],
+  "notification-service": [{"urgency": "low", "status": "triggered", "days_ago": 1, "summary": "Push notifications delayed by up to 20 minutes"}],
+  "user-profile-service": [],
+  "search-indexing": [{"urgency": "high", "status": "resolved", "days_ago": 6, "summary": "Full index rebuild failure, 4hr outage"}],
+  "auth-gateway": [
+    {"urgency": "low", "status": "resolved", "days_ago": 3, "summary": "Rate limiter misconfigured, false positive blocks"},
+    {"urgency": "low", "status": "resolved", "days_ago": 10, "summary": "Token refresh latency spike"}
+  ],
+  "billing-worker": [{"urgency": "high", "status": "acknowledged", "days_ago": 0, "summary": "Duplicate charge events being emitted, actively being investigated"}]
+}

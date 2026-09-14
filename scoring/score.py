@@ -1,9 +1,8 @@
 """Score a PR's normalized signal against the rubric, one criterion at a time.
 
-Takes normalize_pr_data()'s output and scores the five criteria that have a
+Takes normalize_pr_data()'s output and scores all six criteria that have a
 real data source (test_coverage, change_risk, service_criticality,
-rollback_readiness, ownership). incident_history is skipped - it's added in
-Phase 6, once incident_client.py exists.
+rollback_readiness, ownership, incident_history).
 
 Each criterion gets its own Claude call: the system prompt is that
 criterion's rubric text (description, data_source, pass_example,
@@ -20,10 +19,13 @@ from pathlib import Path
 from typing import Any, Literal
 
 import anthropic
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field, ValidationError
 
 from mcp_client.normalize import TARGET_CRITERIA
 from rubric.schema import RubricCriterion, load_rubric
+
+load_dotenv()
 
 MODEL = "claude-opus-5"
 
@@ -96,7 +98,8 @@ async def score_pr(
     client: anthropic.AsyncAnthropic | None = None,
 ) -> dict[str, dict[str, str]]:
     """Score TARGET_CRITERIA (test_coverage, change_risk, service_criticality,
-    rollback_readiness, ownership) against normalize_pr_data()'s output.
+    rollback_readiness, ownership, incident_history) against
+    normalize_pr_data()'s output.
 
     Returns {criterion_id: {"score": "pass"|"fail"|"needs_review", "reasoning": str}}.
     Raises ScoringError if the rubric or normalized data is missing one of
