@@ -31,6 +31,22 @@ TARGET_CRITERIA = (
 DEFAULT_SERVICE_CRITICALITY_PATH = "rubric/service_criticality.yaml"
 _TIER_RANK = {"P0": 0, "P1": 1, "P2": 2}
 
+# rollback_readiness's near-zero-risk threshold: total changed lines at or
+# under this, on one of these tiers, counts as near-zero risk. Chosen as 20
+# rather than a stricter 10 after comparing both against the 20-PR
+# validation set (docs/pipeline_validation_batch2.md): at 10, a 17-line
+# backward-compatible .d.ts interface addition (vscode#289457) and a
+# 20-line dependency-security bump (langgraph#8449) both landed on a hard
+# fail purely for lacking a stated rollback sentence, which is stricter
+# than how a human reviewer would actually triage either PR. Raising the
+# threshold only ever softens fail to needs_review, never to pass - the
+# pass path via near_zero_risk still requires content_self_evidently_reversible
+# to be true independently - so widening this bucket doesn't risk silently
+# clearing a change that's actually risky, only avoids auto-blocking one
+# that isn't self-evidently safe but also isn't large either.
+_NEAR_ZERO_RISK_MAX_CHANGED_LINES = 20
+_NON_CRITICAL_TIERS = ("unmatched", "P2")
+
 _COVERAGE_NAME_HINTS = ("coverage", "codecov", "coveralls")
 _TEST_NAME_HINTS = ("test",)
 
@@ -125,7 +141,9 @@ def _extract_change_risk(pull_request: dict, service_criticality: dict[str, Any]
     }
 
 
-def _extract_rollback_readiness(pull_request: dict, files: list) -> dict[str, Any]:
+def _extract_rollback_readiness(
+    pull_request: dict, files: list, change_risk: dict[str, Any]
+) -> dict[str, Any]:
     # body uses .get(..., ""), not _require: the GitHub API (via the MCP
     # server) omits this field entirely when it's empty, the same
     # omitempty pattern already handled for additions/deletions/changed_files
@@ -144,10 +162,24 @@ def _extract_rollback_readiness(pull_request: dict, files: list) -> dict[str, An
         if matches:
             diff_matches[filename] = matches
 
+    # is_near_zero_risk is computed here, in code, from change_risk's diff
+    # size and service tier - not left for the model to eyeball from raw
+    # numbers in prose. Handing the model additions/deletions directly and
+    # asking it to judge "is this small" produced inconsistent fail vs.
+    # needs_review calls across near-identical diffs (see
+    # docs/pipeline_validation_batch2.md); a single boolean, computed once,
+    # can't be miscategorized by size regardless of what the diff contains.
+    total_changed_lines = change_risk["additions"] + change_risk["deletions"]
+    is_near_zero_risk = (
+        total_changed_lines <= _NEAR_ZERO_RISK_MAX_CHANGED_LINES
+        and change_risk["service_criticality_tier"] in _NON_CRITICAL_TIERS
+    )
+
     return {
         "body": body,
         "feature_flag_keywords_in_body": _find_keywords(body),
         "feature_flag_keywords_in_diff": diff_matches,
+        "is_near_zero_risk": is_near_zero_risk,
     }
 
 
@@ -266,11 +298,12 @@ def normalize_pr_data(
     files = _require(pr_snapshot, "files", "pr_snapshot")
 
     service_criticality = get_service_criticality(pr_snapshot, service_criticality_path)
+    change_risk = _extract_change_risk(pull_request, service_criticality)
 
     return {
         "test_coverage": _extract_test_coverage(check_runs),
-        "change_risk": _extract_change_risk(pull_request, service_criticality),
-        "rollback_readiness": _extract_rollback_readiness(pull_request, files),
+        "change_risk": change_risk,
+        "rollback_readiness": _extract_rollback_readiness(pull_request, files, change_risk),
         "ownership": _extract_ownership(codeowners_result),
         "service_criticality": service_criticality,
         "incident_history": _extract_incident_history(service_criticality),

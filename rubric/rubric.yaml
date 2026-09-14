@@ -74,21 +74,48 @@ criteria:
     description: >
       The PR documents how to revert the change safely if something goes
       wrong after deploy, either through a stated rollback plan, a
-      feature flag, or confirmation the change is naturally reversible,
-      such as an additive schema change.
+      feature flag, or confirmation the change is naturally reversible.
+      You are not asked to output a final pass/fail/needs_review score
+      for this criterion - only two independent, factual boolean
+      judgments about the diff's content and body. Those two booleans
+      are combined deterministically in code with near_zero_risk (20 or
+      fewer total changed lines, on a non-critical or unmatched-tier
+      service - already computed for you and given as fact, not
+      something to judge) to produce the final label. Judge only what
+      you're asked for below; do not try to anticipate or produce the
+      final score yourself.
     data_source: >
-      PR description text, a linked runbook, or presence of feature flag
-      references in the diff.
+      PR description text, a linked runbook, or feature flag references
+      in the body or diff, used to answer two questions: (1) is the
+      diff's content self-evidently reversible on its face - a
+      docstring, comment, or plain-text documentation edit with no
+      behavioral, schema, or config impact? (2) does the body or diff
+      actually name a real rollback mechanism - a stated plan, a feature
+      flag, or confirmation of additive/natural reversibility?
+      near_zero_risk is also present in the signal, but it's already
+      computed - it isn't part of either question you're answering.
     pass_example: >
-      PR description states the change is behind a feature flag and can
-      be disabled without a redeploy, or confirms the migration is
-      purely additive and safe to roll back.
+      content_self_evidently_reversible is true for a docstring, comment,
+      or plain-text documentation edit with no behavioral, schema, or
+      config impact - unaffected by size. explicit_rollback_stated is
+      true only when the body or diff actually names a real mechanism, a
+      feature flag that can be disabled without a redeploy, or
+      confirmation the change is purely additive and safe to roll back -
+      never for vague language like "can revert if needed."
     fail_example: >
-      A breaking schema migration with no rollback plan mentioned and no
-      feature flag.
+      content_self_evidently_reversible is false for a logic change, a
+      config tweak, or any behavior-affecting fix - anything beyond a
+      docstring, comment, or plain-text edit. explicit_rollback_stated is
+      false whenever the body and diff say nothing concrete about
+      reverting, disabling, or rolling back the change.
     ambiguity_note: >
-      needs_review when a rollback plan is mentioned but vague, such as
-      can revert if needed, without naming the actual mechanism.
+      Judge each boolean independently and honestly from the signal, not
+      based on how you expect them to combine into a final label - that
+      mapping happens in code afterward, not in your judgment.
+      explicit_rollback_stated must stay false for vague language such as
+      "can revert if needed" that names no actual mechanism, even if the
+      PR clearly intends to be revertible. Do not assume data that isn't
+      there.
 
   - id: ownership
     name: Ownership
