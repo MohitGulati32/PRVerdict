@@ -83,13 +83,35 @@
       margin-bottom: 1.5rem;
       border: 1px solid transparent;
     }
+    .banner-top {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
     .banner .decision {
       font-size: 1.4rem;
       font-weight: 800;
       letter-spacing: -0.01em;
     }
-    .banner .pr-ref { font-size: 0.85rem; opacity: 0.8; margin-top: 0.2rem; }
-    .banner .summary { font-size: 0.9rem; margin-top: 0.7rem; line-height: 1.4; }
+    .banner .pr-ref { font-size: 0.85rem; opacity: 0.8; }
+    .banner .summary-badges {
+      margin-top: 0.6rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+    }
+    .summary-tag {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid currentColor;
+    }
 
     .banner-ready       { background: #e6f4ea; border-color: #b7dfc3; color: #1a7f37; }
     .banner-blocked     { background: #fdecea; border-color: #f3c6bf; color: #c0342a; }
@@ -222,12 +244,28 @@
       errorEl.style.display = 'block';
     }
 
+    // decide()'s summary is short and structural, e.g. "Blocked: x failed.
+    // Needs review: y, z." - split on sentence boundaries so each clause
+    // (Blocked/Needs review group) renders as its own compact tag instead
+    // of one run-on paragraph.
+    function summaryTags(summary) {
+      return summary
+        .split('. ')
+        .map((clause) => clause.replace(/\.$/, '').trim())
+        .filter(Boolean);
+    }
+
     function renderResults(data) {
       bannerEl.className = 'banner banner-' + data.decision;
+      const tags = summaryTags(data.summary)
+        .map((clause) => `<span class="summary-tag">${clause}</span>`)
+        .join('');
       bannerEl.innerHTML = `
-        <div class="decision">${DECISION_LABELS[data.decision] || data.decision}</div>
-        <div class="pr-ref">${data.repo}#${data.pr_number}</div>
-        <div class="summary">${data.summary}</div>
+        <div class="banner-top">
+          <span class="decision">${DECISION_LABELS[data.decision] || data.decision}</span>
+          <span class="pr-ref">${data.repo}#${data.pr_number}</span>
+        </div>
+        <div class="summary-badges">${tags}</div>
       `;
 
       listEl.innerHTML = '';

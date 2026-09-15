@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 .env
+
+# Demo recording artifacts
+*.mp4
+scripts/record_demo.sh

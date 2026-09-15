@@ -26,12 +26,6 @@ class GateDecision:
     summary: str
 
 
-def _label(criterion_id: str) -> str:
-    """Turn a snake_case criterion id into a plain-language label, e.g.
-    "rollback_readiness" -> "Rollback readiness"."""
-    return criterion_id.replace("_", " ").capitalize()
-
-
 def decide(scores: dict[str, dict[str, str]]) -> GateDecision:
     """Decide ready / blocked / needs_human_review from score_pr()'s output.
 
@@ -68,18 +62,13 @@ def decide(scores: dict[str, dict[str, str]]) -> GateDecision:
         decision = "ready"
 
     if decision == "ready":
-        summary = "Ready to ship - every criterion passed."
+        summary = "Every criterion passed."
     else:
         parts = []
         if failing:
-            parts.append(
-                "Blocking: " + " ".join(f"{_label(cid)} failed - {reason}" for cid, reason in failing)
-            )
+            parts.append(f"Blocked: {', '.join(cid for cid, _ in failing)} failed.")
         if needs_review:
-            parts.append(
-                "Needs review: "
-                + " ".join(f"{_label(cid)} is unclear - {reason}" for cid, reason in needs_review)
-            )
+            parts.append(f"Needs review: {', '.join(cid for cid, _ in needs_review)}.")
         summary = " ".join(parts)
 
     return GateDecision(decision=decision, summary=summary)
