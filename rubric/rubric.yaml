@@ -1,4 +1,4 @@
-project: Shippable
+project: PRVerdict
 description: >
   Readiness criteria used to gate a pull request before merge.
 

@@ -21,7 +21,7 @@ from scoring.scorer import score_project
 RUBRIC_PATH = "rubric/rubric.yaml"
 UI_DIR = Path(__file__).resolve().parent.parent / "ui"
 
-app = FastAPI(title="Shippable", description="LLM-powered PR readiness scorer")
+app = FastAPI(title="PRVerdict", description="LLM-powered PR readiness scorer")
 
 app.add_middleware(
     CORSMiddleware,

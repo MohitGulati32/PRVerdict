@@ -1,4 +1,4 @@
-# Shippable
+# PRVerdict
 
 A release readiness gate that pulls live PR, CI, and review signals through MCP and scores them against a rubric, instead of trusting a tracker status that just says "done."
 
@@ -6,7 +6,7 @@ A release readiness gate that pulls live PR, CI, and review signals through MCP 
 
 A ticket marked done and a PR marked merged do not confirm a change is actually safe to ship. Tests might not be running. A rollback plan might not exist. The person who approved the PR might not actually own the code they approved. None of that shows up in a project board.
 
-Shippable checks six things a human reviewer would normally have to remember to check by hand, using live data pulled through the Model Context Protocol rather than a custom integration written against each data source.
+PRVerdict checks six things a human reviewer would normally have to remember to check by hand, using live data pulled through the Model Context Protocol rather than a custom integration written against each data source.
 
 ## The result, in one line
 
@@ -27,7 +27,7 @@ Each criterion is scored independently by Claude as pass, fail, or needs_review,
 
 ## Why MCP, specifically
 
-Most "AI checks your PR" tools are built by writing custom integration code against each data source's REST API. Shippable instead connects to the official GitHub MCP server and a PagerDuty MCP server, meaning the tool describes its own capabilities to the client rather than being hand wrapped per endpoint. The same MCP servers this project uses would work identically behind a different LLM client, that portability is the actual point, not an implementation detail.
+Most "AI checks your PR" tools are built by writing custom integration code against each data source's REST API. PRVerdict instead connects to the official GitHub MCP server and a PagerDuty MCP server, meaning the tool describes its own capabilities to the client rather than being hand wrapped per endpoint. The same MCP servers this project uses would work identically behind a different LLM client, that portability is the actual point, not an implementation detail.
 
 ## The rollback_readiness story
 

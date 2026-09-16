@@ -62,7 +62,7 @@ class GitHubMCPClient:
             {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {},
-                "clientInfo": {"name": "shippable", "version": "0.1"},
+                "clientInfo": {"name": "prverdict", "version": "0.1"},
             },
         )
         self._notify("notifications/initialized")
