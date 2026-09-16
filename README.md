@@ -55,8 +55,8 @@ The fix was architectural, not another wording attempt. Rollback_readiness no lo
 ## Running it locally
 
 ```bash
-git clone https://github.com/MohitGulati32/Shippable.git
-cd Shippable
+git clone https://github.com/MohitGulati32/PRVerdict.git
+cd PRVerdict
 pip install -r requirements.txt
 ```
 
@@ -77,3 +77,7 @@ uvicorn api.main:app --reload
 ```
 
 Open `http://localhost:8000`, paste a PR URL, and run it.
+
+## Demo
+
+[30 second walkthrough, link or embed]
