@@ -77,7 +77,3 @@ uvicorn api.main:app --reload
 ```
 
 Open `http://localhost:8000`, paste a PR URL, and run it.
-
-## Demo
-
-[30 second walkthrough, link or embed]
